@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FactureChain — Réclamation</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy:   #0D1B3E;
+    --navy2:  #1A2D5A;
+    --orange: #E8460A;
+    --teal:   #00B4D8;
+    --green:  #06D6A0;
+    --red:    #EF233C;
+    --white:  #FFFFFF;
+    --grey:   #F4F6FA;
+    --grey2:  #8B96A8;
+    --mono:   'Space Mono', monospace;
+    --sans:   'Syne', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--navy); color:var(--white); font-family:var(--sans); min-height:100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    position:fixed; top:0; left:0; width:260px; height:100vh;
+    background:#07112A; border-right:1px solid rgba(255,255,255,0.06);
+    display:flex; flex-direction:column; z-index:100;
+  }
+  .logo { padding:28px 24px 20px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .logo span { font-size:24px; font-weight:800; }
+  .logo .fc { color:var(--white); }
+  .logo .chain { color:var(--orange); }
+  .logo-sub { font-size:9px; color:var(--grey2); letter-spacing:2px; text-transform:uppercase; margin-top:4px; font-family:var(--mono); }
+  .nav-section { padding:20px 16px 8px; }
+  .nav-label { font-size:9px; color:var(--grey2); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; padding-left:8px; font-family:var(--mono); }
+  .nav-item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:8px; cursor:pointer; transition:all 0.2s; font-size:13px; font-weight:600; color:var(--grey2); margin-bottom:2px; text-decoration:none; }
+  .nav-item:hover { background:rgba(255,255,255,0.05); color:var(--white); }
+  .nav-item.active { background:rgba(232,70,10,0.15); color:var(--orange); }
+  .nav-item .icon { font-size:16px; width:20px; text-align:center; }
+  .sidebar-footer { margin-top:auto; padding:20px 24px; border-top:1px solid rgba(255,255,255,0.06); font-size:10px; color:var(--grey2); font-family:var(--mono); line-height:1.6; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; display:inline-block; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .blockchain-status { display:flex; align-items:center; gap:6px; margin-top:8px; }
+
+  /* MAIN */
+  .main { margin-left:260px; padding:32px 36px; animation:fadeIn 0.5s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:translateY(0);} }
+
+  /* TOPBAR */
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
+  .page-title { font-size:26px; font-weight:800; }
+  .page-sub { font-size:12px; color:var(--grey2); margin-top:4px; font-family:var(--mono); }
+  .back-btn { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06); border:none; color:var(--white); padding:10px 18px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; font-family:var(--sans); transition:background 0.2s; text-decoration:none; }
+  .back-btn:hover { background:rgba(255,255,255,0.1); }
+
+  /* PROGRESS */
+  .progress-wrap { margin-bottom:32px; }
+  .progress-steps { display:flex; align-items:center; gap:0; margin-bottom:12px; }
+  .step {
+    display:flex; align-items:center; gap:10px; flex:1;
+    position:relative;
+  }
+  .step:not(:last-child)::after {
+    content:''; position:absolute; left:calc(24px + 10px); top:50%;
+    transform:translateY(-50%); width:calc(100% - 44px); height:2px;
+    background:rgba(255,255,255,0.1);
+  }
+  .step.done:not(:last-child)::after { background:var(--orange); }
+  .step-num {
+    width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:800; flex-shrink:0; z-index:1;
+    border:2px solid rgba(255,255,255,0.1); color:var(--grey2);
+    font-family:var(--mono);
+  }
+  .step.done .step-num { background:var(--orange); border-color:var(--orange); color:#fff; }
+  .step.active .step-num { background:transparent; border-color:var(--orange); color:var(--orange); }
+  .step-info { display:none; }
+
+  /* GRID */
+  .grid { display:grid; grid-template-columns:1fr 360px; gap:24px; }
+
+  /* CARDS */
+  .card { background:#111F42; border-radius:14px; border:1px solid rgba(255,255,255,0.06); overflow:hidden; }
+  .card-header { padding:20px 24px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:12px; }
+  .card-step-num { width:28px; height:28px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+  .card-title { font-size:14px; font-weight:700; }
+  .card-sub { font-size:10px; color:var(--grey2); margin-top:2px; font-family:var(--mono); }
+  .card-body { padding:24px; }
+
+  /* FORM */
+  .form-group { margin-bottom:18px; }
+  .form-label { font-size:10px; color:var(--grey2); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:8px; display:block; font-family:var(--mono); }
+  .form-input {
+    width:100%; background:#07112A; border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px; padding:13px 16px; color:#fff; font-size:13px;
+    font-family:var(--mono); outline:none; transition:border-color 0.2s;
+  }
+  .form-input:focus { border-color:var(--teal); }
+  .form-input[readonly] { color:var(--teal); cursor:default; border-color:rgba(0,180,216,0.2); }
+  .form-input.locked { color:var(--teal); cursor:default; border-color:rgba(0,180,216,0.2); background:#061425; }
+  .lock-icon { float:right; opacity:0.5; }
+  .form-textarea {
+    width:100%; background:#07112A; border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px; padding:13px 16px; color:#fff; font-size:13px;
+    font-family:var(--mono); outline:none; resize:vertical; min-height:90px;
+    transition:border-color 0.2s;
+  }
+  .form-textarea:focus { border-color:var(--teal); }
+
+  .hash-box {
+    background:#061425; border:1px solid rgba(0,180,216,0.25); border-radius:8px;
+    padding:14px 16px; font-family:var(--mono); font-size:10px; color:var(--teal);
+    word-break:break-all; line-height:1.7; position:relative;
+  }
+  .verified-row { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:10px; font-family:var(--mono); color:var(--green); }
+
+  .tag { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:9px; font-weight:700; font-family:var(--mono); }
+  .tag-auto { background:rgba(0,180,216,0.15); color:var(--teal); }
+  .tag-lock { background:rgba(6,214,160,0.12); color:var(--green); }
+  .tag-ux   { background:rgba(232,70,10,0.12); color:var(--orange); }
+
+  .anomaly-recap {
+    background:linear-gradient(135deg,rgba(232,70,10,0.15),rgba(232,70,10,0.05));
+    border:1px solid rgba(232,70,10,0.25); border-radius:10px; padding:16px;
+    margin-bottom:18px;
+  }
+  .anomaly-recap h4 { font-size:13px; font-weight:700; color:var(--orange); margin-bottom:10px; }
+  .recap-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:11px; font-family:var(--mono); }
+  .recap-row:last-child { border-bottom:none; }
+  .recap-key { color:var(--grey2); }
+  .recap-val { color:var(--white); font-weight:700; }
+  .recap-val.orange { color:var(--orange); }
+  .recap-val.red { color:var(--red); }
+
+  /* SUBMIT */
+  .submit-section { margin-top:24px; }
+  .submit-btn {
+    width:100%; padding:16px; border-radius:10px; background:var(--orange);
+    border:none; color:#fff; font-size:15px; font-weight:700; cursor:pointer;
+    font-family:var(--sans); transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .submit-btn:hover { background:#c0390a; transform:translateY(-2px); box-shadow:0 8px 24px rgba(232,70,10,0.4); }
+  .submit-btn:active { transform:translateY(0); }
+  .submit-note { text-align:center; font-size:10px; color:var(--grey2); margin-top:10px; font-family:var(--mono); line-height:1.6; }
+
+  /* RIGHT PANEL */
+  .right-panel { display:flex; flex-direction:column; gap:16px; }
+
+  .info-card { background:#111F42; border-radius:14px; border:1px solid rgba(255,255,255,0.06); padding:20px; }
+  .info-card h4 { font-size:12px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .info-row { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .info-row:last-child { border-bottom:none; }
+  .info-key { font-size:10px; color:var(--grey2); font-family:var(--mono); }
+  .info-val { font-size:11px; font-weight:700; font-family:var(--mono); }
+  .info-val.teal { color:var(--teal); }
+  .info-val.green { color:var(--green); }
+  .info-val.orange { color:var(--orange); }
+
+  .annotation-card { background:#111F42; border-radius:14px; border:1px solid rgba(255,255,255,0.06); padding:20px; }
+  .annotation-card h4 { font-size:11px; font-weight:700; color:var(--grey2); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:14px; font-family:var(--mono); }
+  .annotation { display:flex; gap:12px; margin-bottom:16px; }
+  .annotation:last-child { margin-bottom:0; }
+  .annot-num { width:22px; height:22px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; flex-shrink:0; }
+  .annot-title { font-size:12px; font-weight:700; margin-bottom:4px; }
+  .annot-desc { font-size:10px; color:var(--grey2); line-height:1.5; font-family:var(--mono); }
+
+  /* SUCCESS */
+  .success-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.8); backdrop-filter:blur(10px);
+    z-index:200; align-items:center; justify-content:center;
+  }
+  .success-overlay.open { display:flex; }
+  .success-card {
+    background:#111F42; border-radius:20px; padding:48px 40px; text-align:center;
+    max-width:460px; width:90%; border:1px solid rgba(255,255,255,0.1);
+    animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(0.85);} to{opacity:1;transform:scale(1);} }
+  .success-icon { font-size:64px; margin-bottom:20px; display:block; }
+  .success-card h2 { font-size:24px; font-weight:800; margin-bottom:10px; }
+  .success-card p { color:var(--grey2); font-size:13px; margin-bottom:24px; line-height:1.6; font-family:var(--mono); }
+  .tx-box { background:#07112A; border-radius:10px; padding:14px; font-family:var(--mono); font-size:10px; color:var(--teal); word-break:break-all; text-align:left; border:1px solid rgba(0,180,216,0.2); margin-bottom:20px; line-height:1.7; }
+  .tracking-num { font-size:18px; font-weight:800; color:var(--teal); margin-bottom:24px; font-family:var(--mono); }
+  .success-actions { display:flex; gap:12px; }
+  .btn-primary { flex:1; padding:14px; border-radius:10px; background:var(--orange); border:none; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:var(--sans); transition:background 0.2s; }
+  .btn-primary:hover { background:#c0390a; }
+  .btn-secondary { flex:1; padding:14px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#fff; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--sans); transition:background 0.2s; }
+  .btn-secondary:hover { background:rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div><span class="fc">Facture</span><span class="chain">Chain</span></div>
+    <div class="logo-sub">Phase 2 — Demi-finale</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Navigation</div>
+    <a class="nav-item" href="dashboard.html"><span class="icon">📊</span> Dashboard</a>
+    <a class="nav-item active"><span class="icon">📋</span> Réclamations</a>
+    <a class="nav-item" href="suivi.html"><span class="icon">🔍</span> Suivi</a>
+    <div class="nav-item"><span class="icon">🔗</span> Blockchain</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Projet</div>
+    <div class="nav-item"><span class="icon">⛓</span> Polygon Network</div>
+    <div class="nav-item"><span class="icon">🏛</span> ARSEL API</div>
+  </div>
+  <div class="sidebar-footer">
+    <div>MIABE Hackathon 2026</div>
+    <div>Darollo Technologies Corp.</div>
+    <div style="margin-top:4px;font-size:9px;color:#555">ODD 7 · ODD 11 · ODD 16</div>
+    <div class="blockchain-status"><span class="dot"></span><span>Polygon — connecté</span></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="page-title">Nouvelle Réclamation</div>
+      <div class="page-sub">Facture Août 2026 · ENEO · Contrat CMR-YDE-2847391</div>
+    </div>
+    <a class="back-btn" href="dashboard.html">← Retour au Dashboard</a>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap">
+    <div class="progress-steps">
+      <div class="step done">
+        <div class="step-num">✓</div>
+      </div>
+      <div class="step done">
+        <div class="step-num">✓</div>
+      </div>
+      <div class="step active">
+        <div class="step-num">3</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0;padding-left:0;">
+      <div style="flex:1;font-size:10px;font-family:var(--mono);color:var(--green)">① Identification</div>
+      <div style="flex:1;font-size:10px;font-family:var(--mono);color:var(--green)">② Preuve blockchain</div>
+      <div style="flex:1;font-size:10px;font-family:var(--mono);color:var(--orange)">③ Soumission</div>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="grid">
+
+    <!-- FORMULAIRE -->
+    <div>
+
+      <!-- SECTION 1 : Infos contrat -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-step-num">1</div>
+          <div>
+            <div class="card-title">Informations du contrat</div>
+            <div class="card-sub">Données importées automatiquement depuis votre compte</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="form-group">
+              <label class="form-label">Numéro de contrat ENEO <span class="lock-icon">🔒</span></label>
+              <input class="form-input locked" readonly value="CMR-YDE-2847391"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Période contestée <span class="lock-icon">🔒</span></label>
+              <input class="form-input locked" readonly value="Août 2026"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nom de l'abonné</label>
+              <input class="form-input locked" readonly value="Jean-Paul Mbarga"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Zone géographique</label>
+              <input class="form-input locked" readonly value="Yaoundé — Bastos"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <span class="tag tag-auto">⚡ AUTO-FILL</span>
+            <span class="tag tag-lock">🔒 Champs blockchain — lecture seule</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2 : Preuve blockchain -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-step-num">2</div>
+          <div>
+            <div class="card-title">Preuve Blockchain</div>
+            <div class="card-sub">Hash importé automatiquement · Immuable · Recevable en justice</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Hash de consommation enregistré</label>
+            <div class="hash-box">
+              TRANSACTION BLOCKCHAIN<br/>
+              0x4a7f2c8e1b3d9f6a5c2e8d2c4b7a1f3e9d5c<br/>
+              <div class="verified-row">✓ Vérifié sur réseau Polygon · Horodatage : 31 Juil 2026, 14:22 UTC</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="form-group">
+              <label class="form-label">Consommation réelle (kWh blockchain) <span class="lock-icon">🔒</span></label>
+              <input class="form-input locked" readonly value="312 kWh"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Consommation facturée (kWh ENEO) <span class="lock-icon">🔒</span></label>
+              <input class="form-input locked" readonly value="389 kWh"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Écart détecté <span class="lock-icon">🔒</span></label>
+              <input class="form-input" readonly value="+77 kWh (+24.7%) — Seuil dépassé : 5%" style="color:var(--red);border-color:rgba(239,35,60,0.3);"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Montant contestable <span class="lock-icon">🔒</span></label>
+              <input class="form-input locked" readonly value="9 350 FCFA"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <span class="tag tag-lock">🔒 Intégrité blockchain garantie</span>
+            <span class="tag tag-auto">⚡ Ancrage automatique au submit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3 : Détails -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-step-num">3</div>
+          <div>
+            <div class="card-title">Détails de la réclamation</div>
+            <div class="card-sub">Informations complémentaires — optionnel</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Type d'anomalie</label>
+            <select class="form-input" style="cursor:pointer;">
+              <option>Surfacturation directe (écart kWh)</option>
+              <option>Facture estimée — compteur défaillant</option>
+              <option>Double facturation</option>
+              <option>Période incorrecte</option>
+              <option>Taux de perte réseau abusif</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description complémentaire</label>
+            <textarea class="form-textarea" placeholder="Décrivez la situation en vos propres mots (optionnel)..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Document justificatif (optionnel)</label>
+            <input class="form-input" type="text" placeholder="Photo de votre facture papier..." style="cursor:pointer;" readonly onclick="alert('Upload activé en version finale')"/>
+          </div>
+          <span class="tag tag-ux">📱 UX — 3 étapes guidées</span>
+        </div>
+      </div>
+
+      <!-- ANOMALY RECAP -->
+      <div class="anomaly-recap">
+        <h4>⚠ Récapitulatif de l'anomalie</h4>
+        <div class="recap-row"><span class="recap-key">Abonné</span><span class="recap-val">Jean-Paul Mbarga · CMR-YDE-2847391</span></div>
+        <div class="recap-row"><span class="recap-key">Période</span><span class="recap-val">Août 2026</span></div>
+        <div class="recap-row"><span class="recap-key">Consommation réelle</span><span class="recap-val">312 kWh (blockchain)</span></div>
+        <div class="recap-row"><span class="recap-key">Facturé par ENEO</span><span class="recap-val orange">389 kWh (+77 kWh)</span></div>
+        <div class="recap-row"><span class="recap-key">Montant contestable</span><span class="recap-val red">9 350 FCFA</span></div>
+        <div class="recap-row"><span class="recap-key">Preuve</span><span class="recap-val" style="color:var(--teal);font-size:10px;">0x4a7f...e9d5c · Polygon #47291845</span></div>
+      </div>
+
+      <!-- SUBMIT -->
+      <div class="submit-section">
+        <button class="submit-btn" onclick="soumettre()">
+          ⛓ Soumettre et ancrer sur blockchain
+        </button>
+        <div class="submit-note">
+          En soumettant, votre réclamation sera ancrée sur Polygon.<br/>
+          Elle deviendra publique, immuable et recevable devant l'ARSEL.
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <!-- Infos blockchain -->
+      <div class="info-card">
+        <h4>🔗 Registre Blockchain</h4>
+        <div class="info-row"><span class="info-key">Réseau</span><span class="info-val teal">Polygon Mainnet</span></div>
+        <div class="info-row"><span class="info-key">Bloc</span><span class="info-val">#47291845</span></div>
+        <div class="info-row"><span class="info-key">Smart contract</span><span class="info-val teal">FactureChain.sol</span></div>
+        <div class="info-row"><span class="info-key">Coût transaction</span><span class="info-val green">< 0.01 USD</span></div>
+        <div class="info-row"><span class="info-key">Anomalie flag</span><span class="info-val orange">TRUE · +24.7%</span></div>
+        <div class="info-row"><span class="info-key">Statut</span><span class="info-val green">✓ Immuable</span></div>
+      </div>
+
+      <!-- Délais -->
+      <div class="info-card">
+        <h4>⏱ Délais de traitement</h4>
+        <div class="info-row"><span class="info-key">Accusé réception</span><span class="info-val green">Immédiat</span></div>
+        <div class="info-row"><span class="info-key">Vérification ENEO</span><span class="info-val">7 jours</span></div>
+        <div class="info-row"><span class="info-key">Délai max légal</span><span class="info-val orange">30 jours</span></div>
+        <div class="info-row"><span class="info-key">Escalade ARSEL</span><span class="info-val teal">Auto si dépassé</span></div>
+        <div style="margin-top:12px;padding:10px;background:rgba(6,214,160,0.08);border-radius:8px;font-size:10px;font-family:var(--mono);color:var(--green);line-height:1.6;">
+          ✓ Si ENEO ne répond pas sous 30 jours, le smart contract escalade automatiquement vers l'ARSEL.
+        </div>
+      </div>
+
+      <!-- Annotations -->
+      <div class="annotation-card">
+        <h4>Annotations — 4 notes</h4>
+        <div class="annotation">
+          <div class="annot-num">1</div>
+          <div>
+            <div class="annot-title">Preuve pré-remplie</div>
+            <div class="annot-desc">Hash et kWh réels importés automatiquement depuis la blockchain. L'abonné n'a rien à saisir.</div>
+          </div>
+        </div>
+        <div class="annotation">
+          <div class="annot-num">2</div>
+          <div>
+            <div class="annot-title">Barre de progression</div>
+            <div class="annot-desc">3 étapes guidées réduisent la friction et augmentent le taux de complétion.</div>
+          </div>
+        </div>
+        <div class="annotation">
+          <div class="annot-num">3</div>
+          <div>
+            <div class="annot-title">Champs verrouillés</div>
+            <div class="annot-desc">Les données blockchain sont en lecture seule. Elles ne peuvent pas être modifiées.</div>
+          </div>
+        </div>
+        <div class="annotation">
+          <div class="annot-num">4</div>
+          <div>
+            <div class="annot-title">Ancrage au submit</div>
+            <div class="annot-desc">À la soumission, la réclamation est ancrée sur Polygon. Elle devient une preuve légale immédiate.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <span class="success-icon">✅</span>
+    <h2>Réclamation soumise !</h2>
+    <p>Votre réclamation est ancrée sur la blockchain Polygon.<br/>Elle est publique, immuable et recevable devant l'ARSEL.</p>
+    <div class="tx-box">
+      TX HASH :<br/>
+      0xb9c3f1a2e8d4517b6c0e9f3a2d1b8e7c4f5a2b1d3e6c9f0a7b2d4e1c8f3a0b5d2<br/>
+      <span style="color:var(--green)">✓ Confirmé sur Polygon · Bloc #47291902 · 12 Août 2026, 09:14 UTC</span>
+    </div>
+    <div class="tracking-num">#FC-2026-0847</div>
+    <div class="success-actions">
+      <button class="btn-primary" onclick="window.location.href='suivi.html'">Suivre ma réclamation →</button>
+      <button class="btn-secondary" onclick="closeSuccess()">Retour</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function soumettre() {
+  document.getElementById('successOverlay').classList.add('open');
+}
+function closeSuccess() {
+  document.getElementById('successOverlay').classList.remove('open');
+}
+</script>
+</body>
+</html>

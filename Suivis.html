@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FactureChain — Suivi de Résolution</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy:   #0D1B3E;
+    --navy2:  #1A2D5A;
+    --orange: #E8460A;
+    --teal:   #00B4D8;
+    --green:  #06D6A0;
+    --red:    #EF233C;
+    --white:  #FFFFFF;
+    --grey2:  #8B96A8;
+    --mono:   'Space Mono', monospace;
+    --sans:   'Syne', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--navy); color:var(--white); font-family:var(--sans); min-height:100vh; }
+
+  /* SIDEBAR */
+  .sidebar { position:fixed; top:0; left:0; width:260px; height:100vh; background:#07112A; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; z-index:100; }
+  .logo { padding:28px 24px 20px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .logo span { font-size:24px; font-weight:800; }
+  .logo .fc { color:var(--white); }
+  .logo .chain { color:var(--orange); }
+  .logo-sub { font-size:9px; color:var(--grey2); letter-spacing:2px; text-transform:uppercase; margin-top:4px; font-family:var(--mono); }
+  .nav-section { padding:20px 16px 8px; }
+  .nav-label { font-size:9px; color:var(--grey2); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; padding-left:8px; font-family:var(--mono); }
+  .nav-item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:8px; cursor:pointer; transition:all 0.2s; font-size:13px; font-weight:600; color:var(--grey2); margin-bottom:2px; text-decoration:none; }
+  .nav-item:hover { background:rgba(255,255,255,0.05); color:var(--white); }
+  .nav-item.active { background:rgba(232,70,10,0.15); color:var(--orange); }
+  .nav-item .icon { font-size:16px; width:20px; text-align:center; }
+  .sidebar-footer { margin-top:auto; padding:20px 24px; border-top:1px solid rgba(255,255,255,0.06); font-size:10px; color:var(--grey2); font-family:var(--mono); line-height:1.6; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; display:inline-block; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .blockchain-status { display:flex; align-items:center; gap:6px; margin-top:8px; }
+
+  /* MAIN */
+  .main { margin-left:260px; padding:32px 36px; animation:fadeIn 0.5s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:translateY(0);} }
+
+  /* TOPBAR */
+  .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
+  .page-title { font-size:26px; font-weight:800; }
+  .page-sub { font-size:12px; color:var(--grey2); margin-top:4px; font-family:var(--mono); }
+  .back-btn { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06); border:none; color:var(--white); padding:10px 18px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; font-family:var(--sans); transition:background 0.2s; text-decoration:none; }
+  .back-btn:hover { background:rgba(255,255,255,0.1); }
+
+  /* RECAP BANNER */
+  .recap-banner {
+    background:#111F42; border-radius:14px; padding:20px 24px;
+    display:flex; align-items:center; gap:24px; margin-bottom:28px;
+    border:1px solid rgba(255,255,255,0.06);
+    animation: fadeIn 0.4s ease 0.1s both;
+  }
+  .recap-id { font-family:var(--mono); }
+  .recap-id .num { font-size:20px; font-weight:800; color:var(--teal); }
+  .recap-id .hash { font-size:10px; color:var(--grey2); margin-top:3px; }
+  .recap-divider { width:1px; height:48px; background:rgba(255,255,255,0.08); }
+  .recap-info { flex:1; }
+  .recap-info .label { font-size:10px; color:var(--grey2); font-family:var(--mono); margin-bottom:3px; }
+  .recap-info .value { font-size:14px; font-weight:700; }
+  .recap-info .value.orange { color:var(--orange); }
+  .step-counter {
+    background:rgba(232,70,10,0.12); border:1px solid rgba(232,70,10,0.25);
+    border-radius:10px; padding:10px 18px; text-align:center;
+  }
+  .step-counter .num { font-size:22px; font-weight:800; color:var(--orange); font-family:var(--mono); }
+  .step-counter .lbl { font-size:10px; color:var(--grey2); font-family:var(--mono); }
+
+  /* GRID */
+  .grid { display:grid; grid-template-columns:1fr 340px; gap:24px; }
+
+  /* CARD */
+  .card { background:#111F42; border-radius:14px; border:1px solid rgba(255,255,255,0.06); }
+  .card-header { padding:20px 24px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center; }
+  .card-title { font-size:14px; font-weight:700; }
+  .card-sub { font-size:10px; color:var(--grey2); margin-top:2px; font-family:var(--mono); }
+  .card-body { padding:24px; }
+
+  /* TIMELINE */
+  .timeline { position:relative; padding-left:48px; }
+
+  .tl-item {
+    position:relative; margin-bottom:0;
+    animation: fadeIn 0.4s ease both;
+  }
+  .tl-item:nth-child(1){animation-delay:0.1s}
+  .tl-item:nth-child(2){animation-delay:0.2s}
+  .tl-item:nth-child(3){animation-delay:0.3s}
+  .tl-item:nth-child(4){animation-delay:0.4s}
+  .tl-item:nth-child(5){animation-delay:0.5s}
+
+  /* Ligne verticale */
+  .tl-item:not(:last-child)::before {
+    content:''; position:absolute;
+    left:-34px; top:32px;
+    width:2px; bottom:-1px;
+    background:rgba(255,255,255,0.08);
+  }
+  .tl-item.done:not(:last-child)::before { background:var(--green); }
+  .tl-item.active:not(:last-child)::before { background:rgba(232,70,10,0.3); }
+
+  /* Cercle */
+  .tl-dot {
+    position:absolute; left:-48px; top:12px;
+    width:28px; height:28px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:800; font-family:var(--mono);
+    border:2px solid rgba(255,255,255,0.1); color:var(--grey2);
+    background:var(--navy2);
+  }
+  .tl-item.done .tl-dot { background:var(--green); border-color:var(--green); color:#fff; font-size:14px; }
+  .tl-item.active .tl-dot { background:transparent; border-color:var(--orange); color:var(--orange); animation:dotPulse 1.5s infinite; }
+  .tl-item.pending .tl-dot { opacity:0.4; }
+  @keyframes dotPulse { 0%,100%{box-shadow:0 0 0 0 rgba(232,70,10,0.4);} 50%{box-shadow:0 0 0 8px rgba(232,70,10,0);} }
+
+  .tl-content {
+    background:#0D1F44; border-radius:12px; padding:18px 20px;
+    margin-bottom:12px; border:1px solid rgba(255,255,255,0.05);
+    transition:border-color 0.2s;
+  }
+  .tl-item.done .tl-content { border-color:rgba(6,214,160,0.15); }
+  .tl-item.active .tl-content { border-color:rgba(232,70,10,0.25); background:rgba(232,70,10,0.04); }
+  .tl-item.pending .tl-content { opacity:0.4; }
+
+  .tl-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .tl-title { font-size:13px; font-weight:700; }
+  .tl-date { font-size:10px; color:var(--grey2); font-family:var(--mono); }
+  .tl-desc { font-size:11px; color:var(--grey2); line-height:1.6; margin-bottom:10px; font-family:var(--mono); }
+
+  .tl-hash {
+    background:#061425; border-radius:6px; padding:10px 12px;
+    font-family:var(--mono); font-size:10px; color:var(--teal);
+    border:1px solid rgba(0,180,216,0.15); word-break:break-all; line-height:1.6;
+  }
+  .tl-hash .hash-label { color:var(--grey2); font-size:9px; letter-spacing:1px; text-transform:uppercase; display:block; margin-bottom:4px; }
+
+  .tl-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:9px; font-weight:700; font-family:var(--mono); margin-top:8px; }
+  .badge-done { background:rgba(6,214,160,0.12); color:var(--green); }
+  .badge-active { background:rgba(232,70,10,0.12); color:var(--orange); }
+  .badge-pending { background:rgba(139,150,168,0.12); color:var(--grey2); }
+  .badge-arsel { background:rgba(0,180,216,0.12); color:var(--teal); }
+
+  .in-progress-bar {
+    height:4px; background:rgba(255,255,255,0.08); border-radius:2px; margin-top:10px; overflow:hidden;
+  }
+  .in-progress-fill { height:100%; background:var(--orange); border-radius:2px; width:60%; animation:progressAnim 2s ease-in-out infinite alternate; }
+  @keyframes progressAnim { from{width:40%;} to{width:80%;} }
+
+  /* RIGHT PANEL */
+  .right-panel { display:flex; flex-direction:column; gap:16px; }
+
+  .info-card { background:#111F42; border-radius:14px; border:1px solid rgba(255,255,255,0.06); padding:20px; }
+  .info-card h4 { font-size:12px; font-weight:700; margin-bottom:14px; }
+  .info-row { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .info-row:last-child { border-bottom:none; }
+  .info-key { font-size:10px; color:var(--grey2); font-family:var(--mono); }
+  .info-val { font-size:11px; font-weight:700; font-family:var(--mono); }
+  .info-val.teal { color:var(--teal); }
+  .info-val.green { color:var(--green); }
+  .info-val.orange { color:var(--orange); }
+  .info-val.red { color:var(--red); }
+
+  /* Délai gauge */
+  .delai-gauge { margin-top:16px; }
+  .delai-label { display:flex; justify-content:space-between; font-size:10px; font-family:var(--mono); color:var(--grey2); margin-bottom:6px; }
+  .gauge-bar { height:8px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden; }
+  .gauge-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--green),var(--orange)); width:33%; }
+  .gauge-days { font-size:11px; font-family:var(--mono); color:var(--orange); margin-top:6px; font-weight:700; }
+
+  /* Annotation card */
+  .annotation-card { background:#111F42; border-radius:14px; border:1px solid rgba(255,255,255,0.06); padding:20px; }
+  .annotation-card h4 { font-size:11px; font-weight:700; color:var(--grey2); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:14px; font-family:var(--mono); }
+  .annotation { display:flex; gap:12px; margin-bottom:16px; }
+  .annotation:last-child { margin-bottom:0; }
+  .annot-num { width:22px; height:22px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; flex-shrink:0; }
+  .annot-title { font-size:12px; font-weight:700; margin-bottom:4px; }
+  .annot-desc { font-size:10px; color:var(--grey2); line-height:1.5; font-family:var(--mono); }
+
+  /* Escalade alert */
+  .escalade-alert {
+    background:rgba(0,180,216,0.08); border:1px solid rgba(0,180,216,0.2);
+    border-radius:10px; padding:14px; margin-top:4px;
+  }
+  .escalade-alert h5 { font-size:11px; font-weight:700; color:var(--teal); margin-bottom:6px; }
+  .escalade-alert p { font-size:10px; color:var(--grey2); line-height:1.6; font-family:var(--mono); }
+
+  /* Share button */
+  .share-btn {
+    width:100%; padding:13px; border-radius:10px;
+    background:rgba(0,180,216,0.1); border:1px solid rgba(0,180,216,0.25);
+    color:var(--teal); font-size:13px; font-weight:700; cursor:pointer;
+    font-family:var(--sans); transition:all 0.2s; margin-top:4px;
+  }
+  .share-btn:hover { background:rgba(0,180,216,0.2); }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div><span class="fc">Facture</span><span class="chain">Chain</span></div>
+    <div class="logo-sub">Phase 2 — Demi-finale</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Navigation</div>
+    <a class="nav-item" href="dashboard.html"><span class="icon">📊</span> Dashboard</a>
+    <a class="nav-item" href="reclamation.html"><span class="icon">📋</span> Réclamations</a>
+    <a class="nav-item active"><span class="icon">🔍</span> Suivi</a>
+    <div class="nav-item"><span class="icon">🔗</span> Blockchain</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Projet</div>
+    <div class="nav-item"><span class="icon">⛓</span> Polygon Network</div>
+    <div class="nav-item"><span class="icon">🏛</span> ARSEL API</div>
+  </div>
+  <div class="sidebar-footer">
+    <div>MIABE Hackathon 2026</div>
+    <div>Darollo Technologies Corp.</div>
+    <div style="margin-top:4px;font-size:9px;color:#555">ODD 7 · ODD 11 · ODD 16</div>
+    <div class="blockchain-status"><span class="dot"></span><span>Polygon — connecté</span></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="page-title">Suivi de Résolution</div>
+      <div class="page-sub">Réclamation #FC-2026-0847 · Surfacturation Août 2026 · 9 350 FCFA</div>
+    </div>
+    <a class="back-btn" href="dashboard.html">← Retour au Dashboard</a>
+  </div>
+
+  <!-- RECAP BANNER -->
+  <div class="recap-banner">
+    <div class="recap-id">
+      <div class="num">#FC-2026-0847</div>
+      <div class="hash">0x4a7f2c8e1b3d9f6a5c2e8d2c4b7a1f3e9d5c</div>
+    </div>
+    <div class="recap-divider"></div>
+    <div class="recap-info">
+      <div class="label">Objet</div>
+      <div class="value">Surfacturation Août 2026 — 9 350 FCFA</div>
+    </div>
+    <div class="recap-divider"></div>
+    <div class="recap-info">
+      <div class="label">Déposée le</div>
+      <div class="value">12 Août 2026</div>
+    </div>
+    <div class="recap-divider"></div>
+    <div class="recap-info">
+      <div class="label">Statut actuel</div>
+      <div class="value orange">En instruction</div>
+    </div>
+    <div class="step-counter">
+      <div class="num">3 / 5</div>
+      <div class="lbl">étape</div>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="grid">
+
+    <!-- TIMELINE -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Historique de traitement</div>
+          <div class="card-sub">Chaque étape ancrée sur blockchain · Immuable · Infalsifiable</div>
+        </div>
+        <span style="background:rgba(232,70,10,0.12);color:var(--orange);padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono);">⏱ Étape 3 / 5</span>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+
+          <!-- ÉTAPE 1 — DONE -->
+          <div class="tl-item done">
+            <div class="tl-dot">✓</div>
+            <div class="tl-content">
+              <div class="tl-header">
+                <div class="tl-title">Réclamation déposée</div>
+                <div class="tl-date">12 Août 2026 · 09:14 UTC</div>
+              </div>
+              <div class="tl-desc">Formulaire soumis et ancré sur blockchain. Numéro de suivi attribué automatiquement.</div>
+              <div class="tl-hash">
+                <span class="hash-label">TX Hash</span>
+                0xb9c3f1a2e8d4517b6c0e9f3a2d1b8e7c4f5a2b1d3e6c9f0a7b2d4e1c8f3a0b5d2
+              </div>
+              <span class="tl-badge badge-done">✓ Ancré Polygon · Bloc #47291902</span>
+            </div>
+          </div>
+
+          <!-- ÉTAPE 2 — DONE -->
+          <div class="tl-item done">
+            <div class="tl-dot">✓</div>
+            <div class="tl-content">
+              <div class="tl-header">
+                <div class="tl-title">Accusé de réception ENEO</div>
+                <div class="tl-date">13 Août 2026 · 11:30 UTC</div>
+              </div>
+              <div class="tl-desc">Réclamation enregistrée dans le système ENEO. Dossier transmis au service clientèle — référence interne ENEO-RC-2026-4471.</div>
+              <div class="tl-hash">
+                <span class="hash-label">TX Hash</span>
+                0xd4e2f9a1b7c3e0d5f8a2b9c6e1d4f7a0b3c8e5d2f1a9b6c3e0d7f4a1b8c5e2d9
+              </div>
+              <span class="tl-badge badge-done">✓ Confirmé · Délai : 1 jour</span>
+            </div>
+          </div>
+
+          <!-- ÉTAPE 3 — ACTIVE -->
+          <div class="tl-item active">
+            <div class="tl-dot">3</div>
+            <div class="tl-content">
+              <div class="tl-header">
+                <div class="tl-title">Vérification technique en cours</div>
+                <div class="tl-date">Démarré le 14 Août 2026</div>
+              </div>
+              <div class="tl-desc">Le technicien ENEO compare les relevés physiques avec l'historique blockchain. La preuve cryptographique est opposable — ENEO ne peut pas contester le hash.</div>
+              <div class="in-progress-bar"><div class="in-progress-fill"></div></div>
+              <span class="tl-badge badge-active">⟳ En cours · Délai restant : 21 jours</span>
+            </div>
+          </div>
+
+          <!-- ÉTAPE 4 — PENDING -->
+          <div class="tl-item pending">
+            <div class="tl-dot">4</div>
+            <div class="tl-content">
+              <div class="tl-header">
+                <div class="tl-title">Décision ENEO</div>
+                <div class="tl-date">En attente</div>
+              </div>
+              <div class="tl-desc">ENEO notifie sa décision — acceptation ou refus du remboursement. La décision est ancrée sur blockchain pour traçabilité.</div>
+              <span class="tl-badge badge-pending">◯ En attente</span>
+            </div>
+          </div>
+
+          <!-- ÉTAPE 5 — PENDING -->
+          <div class="tl-item pending">
+            <div class="tl-dot">5</div>
+            <div class="tl-content">
+              <div class="tl-header">
+                <div class="tl-title">Résolution finale</div>
+                <div class="tl-date">En attente</div>
+              </div>
+              <div class="tl-desc">Remboursement ou escalade vers l'ARSEL si ENEO refuse. Si délai dépassé, le smart contract escalade automatiquement.</div>
+              <span class="tl-badge badge-arsel">⚡ Escalade auto si délai dépassé</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <!-- Infos réclamation -->
+      <div class="info-card">
+        <h4>📋 Détails de la réclamation</h4>
+        <div class="info-row"><span class="info-key">Numéro</span><span class="info-val teal">#FC-2026-0847</span></div>
+        <div class="info-row"><span class="info-key">Abonné</span><span class="info-val">J.-P. Mbarga</span></div>
+        <div class="info-row"><span class="info-key">Contrat</span><span class="info-val">CMR-YDE-2847391</span></div>
+        <div class="info-row"><span class="info-key">Période</span><span class="info-val">Août 2026</span></div>
+        <div class="info-row"><span class="info-key">Écart</span><span class="info-val orange">+77 kWh (+24.7%)</span></div>
+        <div class="info-row"><span class="info-key">Montant</span><span class="info-val red">9 350 FCFA</span></div>
+        <div class="info-row"><span class="info-key">Réseau</span><span class="info-val teal">Polygon Mainnet</span></div>
+      </div>
+
+      <!-- Délai -->
+      <div class="info-card">
+        <h4>⏱ Délai de résolution</h4>
+        <div class="delai-gauge">
+          <div class="delai-label"><span>Déposée</span><span>Limite légale : 30 jours</span></div>
+          <div class="gauge-bar"><div class="gauge-fill"></div></div>
+          <div class="gauge-days">Jour 10 / 30 — 20 jours restants</div>
+        </div>
+        <div class="escalade-alert" style="margin-top:14px;">
+          <h5>⚡ Escalade automatique</h5>
+          <p>Si ENEO ne répond pas avant le 11 Sept. 2026, le smart contract escalade automatiquement vers l'ARSEL. Ni ENEO ni personne ne peut bloquer ce processus.</p>
+        </div>
+      </div>
+
+      <!-- Blockchain proof -->
+      <div class="info-card">
+        <h4>🔗 Preuve Blockchain</h4>
+        <div style="background:#061425;border-radius:8px;padding:12px;font-family:var(--mono);font-size:10px;color:var(--teal);word-break:break-all;line-height:1.7;border:1px solid rgba(0,180,216,0.15);margin-bottom:12px;">
+          0xb9c3f1a2e8d4517b6c0e9f3a2d1b8e7c4f5a2b1<br/>
+          <span style="color:var(--green)">✓ Bloc #47291902 · Polygon · 12 Août 2026</span>
+        </div>
+        <div class="info-row"><span class="info-key">Smart contract</span><span class="info-val teal">FactureChain.sol</span></div>
+        <div class="info-row"><span class="info-key">Valeur légale</span><span class="info-val green">✓ Recevable ARSEL</span></div>
+        <div class="info-row"><span class="info-key">Modifiable</span><span class="info-val red">✗ Impossible</span></div>
+        <button class="share-btn" onclick="alert('Lien copié : facturechain.app/reclamation/FC-2026-0847')">🔗 Partager le lien public</button>
+      </div>
+
+      <!-- Annotations -->
+      <div class="annotation-card">
+        <h4>Annotations — 4 notes</h4>
+        <div class="annotation">
+          <div class="annot-num">1</div>
+          <div>
+            <div class="annot-title">Timeline traçable</div>
+            <div class="annot-desc">Chaque étape est ancrée sur blockchain avec timestamp certifié. Ni ENEO ni personne ne peut falsifier l'historique.</div>
+          </div>
+        </div>
+        <div class="annotation">
+          <div class="annot-num">2</div>
+          <div>
+            <div class="annot-title">Délai transparent</div>
+            <div class="annot-desc">L'abonné voit exactement où en est sa réclamation et combien de temps il reste. Fini les 14 mois sans réponse.</div>
+          </div>
+        </div>
+        <div class="annotation">
+          <div class="annot-num">3</div>
+          <div>
+            <div class="annot-title">Escalade automatique</div>
+            <div class="annot-desc">Si ENEO ne répond pas dans le délai, un smart contract déclenche automatiquement l'escalade vers l'ARSEL.</div>
+          </div>
+        </div>
+        <div class="annotation">
+          <div class="annot-num">4</div>
+          <div>
+            <div class="annot-title">Hash de réclamation</div>
+            <div class="annot-desc">Le numéro de transaction blockchain sert de référence légale recevable devant les tribunaux camerounais.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+</body>
+</html>
