@@ -1,37 +1,29 @@
 
 import os
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 app = FastAPI()
 
-# --- ROUTES DES PAGES HTML ---
-
+# 1. FORCE L'AFFICHAGE DE L'INDEX
 @app.get("/")
 async def read_index():
-    # Affiche la page d'accueil. Vérifie que ton fichier s'appelle bien index.html
-    return FileResponse('index.html')
+    # On essaye de charger index.html ou ind.html pour être sûr
+    for name in ['index.html', 'ind.html']:
+        if os.path.exists(name):
+            return FileResponse(name)
+    return {"error": "Fichier index.html introuvable sur le serveur"}
 
-@app.get("/login")
-async def read_login():
-    return FileResponse('login.html')
+# 2. ROUTE POUR TOUTES LES AUTRES PAGES
+@app.get("/{filename}")
+async def get_site_file(filename: str):
+    if os.path.exists(filename):
+        return FileResponse(filename)
+    return {"error": f"Fichier {filename} introuvable"}
 
-@app.get("/dash")
-async def read_dash():
-    return FileResponse('dash.html')
-
-@app.get("/reclamation")
-async def read_reclamation():
-    return FileResponse('Réclamation.html')
-
-# --- CONFIGURATION DES FICHIERS (JS, CSS) ---
-# Ceci permet à tes pages de trouver main.js
-app.mount("/static", StaticFiles(directory="."), name="static")
-
-# --- TES ROUTES API (Garde-les !) ---
-
+# 3. ROUTES API
 class LoginCredentials(BaseModel):
     username: str
     password: str
@@ -40,17 +32,12 @@ class LoginCredentials(BaseModel):
 async def login(credentials: LoginCredentials):
     if credentials.username == "admin" and credentials.password == "1234":
         return {"status": "success"}
-    return {"status": "error", "message": "Identifiants incorrects"}
+    return {"status": "error"}
 
-# Route pour les données du dashboard
 @app.get("/api/consommation")
 async def get_consommation():
-    return [
-        {"mois": "Juin", "reel": 180, "fact": 180, "montant": "19 800", "statut": "ok", "hash": "0x4a1e...b9d2"},
-        {"mois": "Juillet", "reel": 220, "fact": 225, "montant": "24 500", "statut": "ok", "hash": "0x7d3c...f8a1"}
-    ]
+    return [{"mois": "Juin", "reel": 180, "fact": 180, "montant": "19 800", "statut": "ok", "hash": "0x4a1e...b9d2"}]
 
-# --- LANCEMENT RENDER ---
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
